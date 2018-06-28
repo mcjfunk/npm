@@ -337,6 +337,98 @@ test.serial('Throw SemanticReleaseError Array if config option are not valid in 
   t.is(errors[3].code, 'ENOPKG');
 });
 
+test.serial('Publish the package and add to default dist-tag', async t => {
+  Object.assign(process.env, npmRegistry.authEnv);
+  const pkg = {name: 'add-channel', version: '1.0.0', publishConfig: {registry: npmRegistry.url}};
+  await outputJson('./package.json', pkg);
+
+  await t.context.m.publish({}, {logger: t.context.logger, nextRelease: {channel: 'next', version: '1.0.0'}});
+
+  const result = await t.context.m.addChannel({}, {logger: t.context.logger, nextRelease: {version: '1.0.0'}});
+
+  t.deepEqual(result, {name: 'npm package (@latest dist-tag)', url: undefined});
+  t.is(await execa.stdout('npm', ['view', pkg.name, 'dist-tags.latest']), '1.0.0');
+});
+
+test.serial('Publish the package and add to lts dist-tag', async t => {
+  Object.assign(process.env, npmRegistry.authEnv);
+  const pkg = {name: 'add-channel-prerelease', version: '1.0.0', publishConfig: {registry: npmRegistry.url}};
+  await outputJson('./package.json', pkg);
+
+  await t.context.m.publish({}, {logger: t.context.logger, nextRelease: {channel: 'latest', version: '1.0.0'}});
+
+  const result = await t.context.m.addChannel(
+    {},
+    {logger: t.context.logger, nextRelease: {channel: '1.x', version: '1.0.0'}}
+  );
+
+  t.deepEqual(result, {name: 'npm package (@release-1.x dist-tag)', url: undefined});
+  t.is(await execa.stdout('npm', ['view', pkg.name, 'dist-tags']), "{ latest: '1.0.0', 'release-1.x': '1.0.0' }");
+});
+
+test.serial('Skip adding the package to a channel', async t => {
+  Object.assign(process.env, npmRegistry.authEnv);
+  // Delete the authentication to make sure they are not required when skipping publish to registry
+  delete process.env.NPM_TOKEN;
+  delete process.env.NPM_USERNAME;
+  delete process.env.NPM_PASSWORD;
+  delete process.env.NPM_EMAIL;
+
+  const pkg = {name: 'skip-add-channel', version: '0.0.0', publishConfig: {registry: npmRegistry.url}};
+  await outputJson('./package.json', pkg);
+
+  const result = await t.context.m.addChannel(
+    {npmPublish: false},
+    {logger: t.context.logger, nextRelease: {version: '1.0.0'}}
+  );
+
+  t.falsy(result);
+  await t.throws(execa('npm', ['view', pkg.name, 'version']));
+});
+
+test.serial('Create the package in addChannel step', async t => {
+  const pkg = {name: 'prepare-pkg', version: '0.0.0', publishConfig: {registry: npmRegistry.url}};
+  await outputJson('./package.json', pkg);
+
+  await t.context.m.prepare(
+    {npmPublish: false, tarballDir: 'tarball'},
+    {logger: t.context.logger, nextRelease: {version: '1.0.0'}}
+  );
+
+  t.is((await readJson('./package.json')).version, '1.0.0');
+  t.true(await pathExists(`./tarball/${pkg.name}-1.0.0.tgz`));
+});
+
+test.serial('Throw SemanticReleaseError Array if config option are not valid in addChannel', async t => {
+  const pkg = {publishConfig: {registry: npmRegistry.url}};
+  await outputJson('./package.json', pkg);
+  const npmPublish = 42;
+  const tarballDir = 42;
+  const pkgRoot = 42;
+
+  const errors = [
+    ...(await t.throws(
+      t.context.m.addChannel(
+        {npmPublish, tarballDir, pkgRoot},
+        {
+          options: {publish: ['@semantic-release/github', '@semantic-release/npm']},
+          nextRelease: {version: '1.0.0'},
+          logger: t.context.logger,
+        }
+      )
+    )),
+  ];
+
+  t.is(errors[0].name, 'SemanticReleaseError');
+  t.is(errors[0].code, 'EINVALIDNPMPUBLISH');
+  t.is(errors[1].name, 'SemanticReleaseError');
+  t.is(errors[1].code, 'EINVALIDTARBALLDIR');
+  t.is(errors[2].name, 'SemanticReleaseError');
+  t.is(errors[2].code, 'EINVALIDPKGROOT');
+  t.is(errors[3].name, 'SemanticReleaseError');
+  t.is(errors[3].code, 'ENOPKG');
+});
+
 test.serial('Verify token and set up auth only on the fist call, then prepare on prepare call only', async t => {
   Object.assign(process.env, npmRegistry.authEnv);
   const pkg = {name: 'test-module', version: '0.0.0-dev', publishConfig: {registry: npmRegistry.url}};
@@ -345,10 +437,15 @@ test.serial('Verify token and set up auth only on the fist call, then prepare on
   await t.notThrows(t.context.m.verifyConditions({}, {options: {}, logger: t.context.logger}));
   await t.context.m.prepare({}, {logger: t.context.logger, nextRelease: {version: '1.0.0'}});
 
-  const result = await t.context.m.publish(
+  let result = await t.context.m.publish(
     {},
     {logger: t.context.logger, nextRelease: {channel: 'next', version: '1.0.0'}}
   );
   t.deepEqual(result, {name: 'npm package (@next dist-tag)', url: undefined});
   t.is(await execa.stdout('npm', ['view', pkg.name, 'dist-tags.next']), '1.0.0');
+
+  result = await t.context.m.addChannel({}, {logger: t.context.logger, nextRelease: {version: '1.0.0'}});
+
+  t.deepEqual(result, {name: 'npm package (@latest dist-tag)', url: undefined});
+  t.is(await execa.stdout('npm', ['view', pkg.name, 'dist-tags.latest']), '1.0.0');
 });

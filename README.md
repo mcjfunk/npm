@@ -20,6 +20,9 @@ Update the `package.json` version and [create](https://docs.npmjs.com/cli/pack) 
 ## publish
 [Publish](https://docs.npmjs.com/cli/publish) to the `npm` registry.
 
+## addChannel
+[Add a release to a dist-tag](https://docs.npmjs.com/cli/dist-tag).
+
 ## Configuration
 
 ### Npm registry authentication
@@ -78,7 +81,8 @@ Each individual plugin can be disabled, replaced or used with other plugins in t
   "release": {
     "verifyConditions": ["@semantic-release/npm", "verify-other-condition"],
     "prepare": ["@semantic-release/npm", "custom-prepare"],
-    "publish": ["@semantic-release/npm", "custom-publish"]
+    "publish": ["@semantic-release/npm", "custom-publish"],
+    "publish": ["@semantic-release/npm", "custom-add-channel"]
   }
 }
 ```
