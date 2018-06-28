@@ -174,10 +174,13 @@ test.serial('Publish the package', async t => {
 test.serial('Publish the package on a dist-tag', async t => {
   Object.assign(process.env, npmRegistry.authEnv);
   process.env.DEFAULT_NPM_REGISTRY = npmRegistry.url;
-  const pkg = {name: 'publish-tag', version: '0.0.0', publishConfig: {registry: npmRegistry.url, tag: 'next'}};
+  const pkg = {name: 'publish-tag', version: '0.0.0', publishConfig: {registry: npmRegistry.url}};
   await outputJson('./package.json', pkg);
 
-  const result = await t.context.m.publish({}, {logger: t.context.logger, nextRelease: {version: '1.0.0'}});
+  const result = await t.context.m.publish(
+    {},
+    {logger: t.context.logger, nextRelease: {version: '1.0.0', channel: 'next'}}
+  );
 
   t.deepEqual(result, {name: 'npm package (@next dist-tag)', url: 'https://www.npmjs.com/package/publish-tag'});
   t.is((await readJson('./package.json')).version, '1.0.0');
@@ -342,6 +345,10 @@ test.serial('Verify token and set up auth only on the fist call, then prepare on
   await t.notThrows(t.context.m.verifyConditions({}, {options: {}, logger: t.context.logger}));
   await t.context.m.prepare({}, {logger: t.context.logger, nextRelease: {version: '1.0.0'}});
 
-  const result = await t.context.m.publish({}, {logger: t.context.logger, nextRelease: {version: '1.0.0'}});
-  t.deepEqual(result, {name: 'npm package (@latest dist-tag)', url: undefined});
+  const result = await t.context.m.publish(
+    {},
+    {logger: t.context.logger, nextRelease: {channel: 'next', version: '1.0.0'}}
+  );
+  t.deepEqual(result, {name: 'npm package (@next dist-tag)', url: undefined});
+  t.is(await execa.stdout('npm', ['view', pkg.name, 'dist-tags.next']), '1.0.0');
 });

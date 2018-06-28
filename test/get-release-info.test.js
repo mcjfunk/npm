@@ -1,4 +1,3 @@
-import {writeFile} from 'fs-extra';
 import test from 'ava';
 import tempy from 'tempy';
 import getReleaseInfo from '../lib/get-release-info';
@@ -26,47 +25,16 @@ test.afterEach.always(() => {
   process.chdir(cwd);
 });
 
-test.serial('Default registry and tag', async t => {
-  t.deepEqual(await getReleaseInfo('module', null, 'https://registry.npmjs.org/'), {
-    name: 'npm package (@latest dist-tag)',
-    url: 'https://www.npmjs.com/package/module',
-  });
-});
-
-test.serial('Default registry, tag and scoped module', async t => {
-  t.deepEqual(await getReleaseInfo('@scope/module', null, 'https://registry.npmjs.org/'), {
+test.serial('Default registry and scoped module', async t => {
+  t.deepEqual(await getReleaseInfo('@scope/module', 'latest', 'https://registry.npmjs.org/'), {
     name: 'npm package (@latest dist-tag)',
     url: 'https://www.npmjs.com/package/@scope/module',
   });
 });
 
-test.serial('Custom registry, tag and scoped module', async t => {
-  t.deepEqual(await getReleaseInfo('@scope/module', null, 'https://custom.registry.org/'), {
+test.serial('Custom registry and scoped module', async t => {
+  t.deepEqual(await getReleaseInfo('@scope/module', 'latest', 'https://custom.registry.org/'), {
     name: 'npm package (@latest dist-tag)',
     url: undefined,
-  });
-});
-
-test.serial('Default registry and tag from .npmrc', async t => {
-  await writeFile('./.npmrc', 'tag=npmrc');
-  t.deepEqual(await getReleaseInfo('module', {}, 'https://registry.npmjs.org/'), {
-    name: 'npm package (@npmrc dist-tag)',
-    url: 'https://www.npmjs.com/package/module',
-  });
-});
-
-test.serial('Default registry and tag from package.json', async t => {
-  await writeFile('./.npmrc', 'tag=npmrc');
-  t.deepEqual(await getReleaseInfo('module', {tag: 'pkg'}, 'https://registry.npmjs.org/'), {
-    name: 'npm package (@pkg dist-tag)',
-    url: 'https://www.npmjs.com/package/module',
-  });
-});
-
-test.serial('Default tag', async t => {
-  await writeFile('./.npmrc', 'tag=');
-  t.deepEqual(await getReleaseInfo('module', {}, 'https://registry.npmjs.org/'), {
-    name: 'npm package (@latest dist-tag)',
-    url: 'https://www.npmjs.com/package/module',
   });
 });
